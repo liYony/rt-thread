@@ -8,12 +8,14 @@
  * 2024-04-11     liYony       the first version
  */
 
+#include <cpu.h>
 #include <mmu.h>
 #include <board.h>
 #include <mm_aspace.h>
 #include <mm_page.h>
 #include <drv_uart.h>
 #include <gtimer.h>
+#include <psci.h>
 
 extern size_t MMUTable[];
 
@@ -36,6 +38,14 @@ void idle_wfi(void)
 {
     asm volatile("wfi");
 }
+
+rt_uint64_t rt_cpu_mpidr_table[] =
+{
+    [0] = 0x80000000,
+    [1] = 0x80000001,
+    [2] = 0x80000002,
+    [3] = 0x80000003,
+};
 
 void rt_hw_board_init(void)
 {
@@ -65,6 +75,8 @@ void rt_hw_board_init(void)
     rt_hw_gtimer_init();
 
     rt_thread_idle_sethook(idle_wfi);
+
+    rt_psci_init("smc", PSCI_VERSION(0, 2), RT_NULL);
 #if defined(RT_USING_CONSOLE) && defined(RT_USING_DEVICE)
     /* set console device */
     rt_console_set_device(RT_CONSOLE_DEVICE_NAME);
@@ -75,3 +87,56 @@ void rt_hw_board_init(void)
     rt_components_board_init();
 #endif
 }
+
+void reboot(void)
+{
+    psci_system_reboot();
+}
+
+MSH_CMD_EXPORT(reboot, reboot system);
+
+#ifdef RT_USING_SMP
+rt_weak void rt_hw_secondary_cpu_up(void)
+{
+    int cpu_id = rt_hw_cpu_id();
+
+    extern void _secondary_cpu_entry(void);
+    rt_uint64_t entry = (rt_uint64_t)rt_kmem_v2p(_secondary_cpu_entry);
+
+    if (!entry)
+    {
+        rt_kprintf("Failed to translate '_secondary_cpu_entry' to physical address\r\n");
+        RT_ASSERT(0);
+    }
+    int i = 0;
+    
+    /* Maybe we are no in the first cpu */
+    for (i = 1; i < RT_CPUS_NR; i++)
+    {
+        rt_psci_cpu_on(i, (uint64_t)(_secondary_cpu_entry));
+    }
+}
+
+void rt_hw_secondary_cpu_bsp_start(void)
+{
+    int cpu_id = rt_hw_cpu_id();
+    rt_hw_spin_lock(&_cpus_lock);
+
+    rt_hw_mmu_ktbl_set((unsigned long)MMUTable);
+
+    rt_hw_vector_init();
+
+    arm_gic_cpu_init(0, 0);
+
+    rt_hw_gtimer_init();
+
+    rt_kprintf("\r\ncpu %d boot success\r\n", rt_hw_cpu_id());
+
+    rt_system_scheduler_start();
+}
+
+void rt_hw_secondary_cpu_idle_exec(void)
+{
+    asm volatile ("wfe":::"memory", "cc");
+}
+#endif

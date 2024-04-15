@@ -10,6 +10,8 @@ CPPPATH = [cwd]
 
 if GetDepend('RT_USING_OFW') == False:
     SrcRemove(src, ['setup.c', 'cpu_psci.c', 'psci.c'])
+else:
+    SrcRemove(src, ['psci_nodt.c'])
 
 if GetDepend('RT_USING_PIC') == True:
     SrcRemove(src, ['gicv3.c', 'gic.c', 'gtimer.c', 'interrupt.c'])

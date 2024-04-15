@@ -147,5 +147,8 @@ rt_uint32_t rt_psci_cpu_suspend(rt_uint32_t power_state, rt_ubase_t entry_point)
 rt_uint32_t rt_psci_migrate(int cpuid);
 rt_uint32_t rt_psci_get_affinity_info(rt_ubase_t target_affinity, rt_ubase_t lowest_affinity_level);
 rt_uint32_t rt_psci_migrate_info_type(void);
+#ifndef RT_USING_OFW
+rt_err_t rt_psci_init(const char *method, rt_uint32_t version, void *data);
+#endif /* !RT_USING_OFW */
 
 #endif  /* __PSCI_H__ */
