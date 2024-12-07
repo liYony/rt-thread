@@ -19,8 +19,15 @@
 #define DRV_IOREMAP(addr, size) rt_ioremap(addr, size)
 #define DRV_IOUNMAP(addr) rt_iounmap(addr)
 #else
+#ifdef ARCH_ARM
+#include <ioremap.h>
+
+#define DRV_IOREMAP(addr, size) rt_ioremap(addr, size)
+#define DRV_IOUNMAP(addr) rt_iounmap(addr)
+#else
 #define DRV_IOREMAP(addr, size) (addr)
 #define DRV_IOUNMAP(addr)
-#endif
+#endif /* ARCH_ARM */
+#endif /* RT_USING_SMART */
 
-#endif
+#endif /* __DRV_IOREMAP_H__ */
